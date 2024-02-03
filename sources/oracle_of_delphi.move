@@ -155,7 +155,17 @@ module overmind::price_oracle {
         @param admin - signer representing the oracle admin
     */
     fun init_module(admin: &signer) {
-	
+        let price_board = PriceBoard { prices: table::new() };
+
+        let (ressource, signer_cap) = account::create_resource_account(admin, SEED);
+        let event_handle = account::new_event_handle<PriceFeedUpdatedEvent>(admin);
+        let state = State { 
+            signer_cap, 
+            price_feed_updated_event: event_handle 
+        };
+
+         move_to(&ressource, price_board);
+         move_to(&ressource, state);
     }
 
     /* 
