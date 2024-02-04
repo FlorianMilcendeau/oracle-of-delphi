@@ -74,7 +74,8 @@ module overmind::price_oracle {
     //==============================================================================================
     // Constants - DO NOT MODIFY
     //==============================================================================================
-    
+    const MAXIMUM_FRESH_DURATION_SECONDS: u64 = 60 * 60 * 3;
+
     // seed for the module's resource account
     const SEED: vector<u8> = b"price oracle";
     
@@ -192,7 +193,7 @@ module overmind::price_oracle {
         let price_board = borrow_global_mut<PriceBoard>(ressource_address);
         let date_now = timestamp::now_seconds();
 
-        if (pair_already_exist(&price_board.prices, pair)) {
+        if (pair_exist(&price_board.prices, pair)) {
             let pair_record = table::borrow_mut(&mut price_board.prices, pair);
 
             pair_record.price.confidence = confidence;
@@ -225,7 +226,16 @@ module overmind::price_oracle {
         @return - the price of the pair along with the confidence
     */
     public fun get_price(pair: String): Price acquires PriceBoard {
+        let ressource_address = account::create_resource_address(&@overmind, SEED);
+        assert!(exists<PriceBoard>(ressource_address), ErrorCodeForAllAborts);
 
+        let price_board = borrow_global<PriceBoard>(ressource_address);
+        assert!(pair_exist(&price_board.prices, pair), ErrorCodeForAllAborts);
+
+        let price_feed = table::borrow(&price_board.prices, pair);
+        assert!(price_feed.latest_attestation_timestamp_seconds + MAXIMUM_FRESH_DURATION_SECONDS >= timestamp::now_seconds(), ErrorCodeForAllAborts);
+
+        price_feed.price
     }
 
     /* 
