@@ -247,7 +247,16 @@ module overmind::price_oracle {
     */
     public fun get_price_no_older_than(pair: String, maximum_age_seconds: u64): Price 
     acquires PriceBoard {
-        
+        let ressource_address = account::create_resource_address(&@overmind, SEED);
+        assert!(exists<PriceBoard>(ressource_address), ErrorCodeForAllAborts);
+
+        let price_board = borrow_global<PriceBoard>(ressource_address);
+        assert!(pair_exist(&price_board.prices, pair), ErrorCodeForAllAborts);
+
+        let price_feed = table::borrow(&price_board.prices, pair);
+        assert!(price_feed.latest_attestation_timestamp_seconds + maximum_age_seconds >= timestamp::now_seconds(), ErrorCodeForAllAborts);
+
+        price_feed.price
     }
 
     /* 
