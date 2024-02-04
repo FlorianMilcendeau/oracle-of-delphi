@@ -182,7 +182,38 @@ module overmind::price_oracle {
         price: u128, 
         confidence: u128
     ) acquires State, PriceBoard {
+        let signer_address = signer::address_of(admin);
+        let ressource_address = account::create_resource_address(&signer_address, SEED);
 
+        assert!(exists<PriceBoard>(ressource_address), ErrorCodeForAllAborts);
+        assert!(exists<State>(ressource_address), ErrorCodeForAllAborts);
+
+        let state = borrow_global_mut<State>(ressource_address);
+        let price_board = borrow_global_mut<PriceBoard>(ressource_address);
+        let date_now = timestamp::now_seconds();
+
+        if (pair_already_exist(&price_board.prices, pair)) {
+            let pair_record = table::borrow_mut(&mut price_board.prices, pair);
+
+            pair_record.price.confidence = confidence;
+            pair_record.price.price = price;
+            pair_record.latest_attestation_timestamp_seconds = date_now;
+
+            event::emit_event(&mut state.price_feed_updated_event, PriceFeedUpdatedEvent {
+                pair,
+                price: pair_record.price,
+                update_timestamp_seconds: date_now
+            });
+        } else {
+            let price_feed = create_price_feed(pair, price, confidence, date_now);
+
+            table::add(&mut price_board.prices, pair, price_feed);
+            event::emit_event(&mut state.price_feed_updated_event, PriceFeedUpdatedEvent {
+                pair,
+                price: price_feed.price,
+                update_timestamp_seconds: date_now
+            });
+        };
     }
 
     /* 
@@ -223,10 +254,25 @@ module overmind::price_oracle {
     //==============================================================================================
     // Helper functions
     //==============================================================================================
-    
+    fun create_price_feed(pair: String, price: u128, confidence: u128, date_now: u64): PriceFeed {
+        let p = Price {
+            confidence,
+            price
+        };
+        let price_feed = PriceFeed {
+            latest_attestation_timestamp_seconds: date_now,
+            pair, 
+            price: p
+        };
+
+        price_feed
+    }
     //==============================================================================================
     // Validation functions
     //==============================================================================================
+    fun pair_already_exist(prices: &Table<String, PriceFeed>, pair: String): bool {
+        table::contains(prices, pair)
+    }
 
     //==============================================================================================
     // Tests - DO NOT MODIFY
