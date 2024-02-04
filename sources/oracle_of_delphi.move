@@ -267,7 +267,15 @@ module overmind::price_oracle {
                     the price was attested
     */
     public fun get_price_unsafe(pair: String): (Price, u64) acquires PriceBoard {
-        
+        let ressource_address = account::create_resource_address(&@overmind, SEED);
+        assert!(exists<PriceBoard>(ressource_address), ErrorCodeForAllAborts);
+
+        let price_board = borrow_global<PriceBoard>(ressource_address);
+        assert!(pair_exist(&price_board.prices, pair), ErrorCodeForAllAborts);
+
+        let price_feed = table::borrow(&price_board.prices, pair);
+
+        (price_feed.price, price_feed.latest_attestation_timestamp_seconds)
     }
 
     //==============================================================================================
@@ -289,7 +297,7 @@ module overmind::price_oracle {
     //==============================================================================================
     // Validation functions
     //==============================================================================================
-    fun pair_already_exist(prices: &Table<String, PriceFeed>, pair: String): bool {
+    fun pair_exist(prices: &Table<String, PriceFeed>, pair: String): bool {
         table::contains(prices, pair)
     }
 
